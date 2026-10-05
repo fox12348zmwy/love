@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>我真的好爱你</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#05000a;overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;user-select:none;touch-action:none;}
+  #cv{display:block;width:100vw;height:100vh;}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script>
+(function(){
+  'use strict';
+
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var TAU = Math.PI * 2;
+  var W=0, H=0, DPR=1, unit=1, cx=0, cy=0, T0=0;
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+  function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+  /* ---- 柔光圆点贴图（比 shadowBlur 快很多） ---- */
+  function makeSprite(rgb){
+    var R=32, c=document.createElement('canvas');
+    c.width=c.height=R*2;
+    var g=c.getContext('2d');
+    var grd=g.createRadialGradient(R,R,0,R,R,R);
+    grd.addColorStop(0,   'rgba('+rgb+',1)');
+    grd.addColorStop(0.28,'rgba('+rgb+',0.72)');
+    grd.addColorStop(0.6, 'rgba('+rgb+',0.16)');
+    grd.addColorStop(1,   'rgba('+rgb+',0)');
+    g.fillStyle=grd;
+    g.beginPath(); g.arc(R,R,R,0,TAU); g.fill();
+    return c;
+  }
+  var SPR_PINK  = makeSprite('255,96,140');
+  var SPR_WHITE = makeSprite('255,216,230');
+  var SPR_FAR   = makeSprite('190,70,120');
+
+  /* ---- 心形参数方程 ---- */
+  function heartRaw(t){
+    var s=Math.sin(t);
+    return [ 16*s*s*s,
+             13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t) ];
+  }
+  /* 沿弧长均匀取点，两个圆顶不会堆成一坨 */
+  function heartOutline(count){
+    var N=2400, pts=[], lens=[0], i, j;
+    for(i=0;i<=N;i++) pts.push(heartRaw(i/N*TAU));
+    for(i=1;i<=N;i++){
+      var dx=pts[i][0]-pts[i-1][0], dy=pts[i][1]-pts[i-1][1];
+      lens.push(lens[i-1]+Math.sqrt(dx*dx+dy*dy));
+    }
+    var total=lens[N], out=[], k=0;
+    for(j=0;j<count;j++){
+      var s=total*j/count;
+      while(k<N-1 && lens[k+1]<s) k++;
+      out.push(pts[k]);
+    }
+    return out;
+  }
+
+  var parts=[], sparks=[];
+
+  function buildHeart(count, scaleU, shiftU, sizeMin, sizeMax, spr, aMin, aMax, delayMax){
+    var list=heartOutline(count);
+    var sc=scaleU*unit, sy=shiftU*unit;
+    for(var i=0;i<count;i++){
+      var p=list[i];
+      var ang=Math.random()*TAU, r=rand(0,1.6);
+      var mx=p[0]+Math.cos(ang)*r;
+      var my=p[1]+Math.sin(ang)*r;
+      parts.push({
+        rx: mx*sc,
+        ry: -(my*sc) - sy,
+        x: (Math.random()-0.5)*W*1.7,
+        y: (Math.random()-0.5)*H*1.7,
+        size: rand(sizeMin,sizeMax),
+        delay: rand(120,delayMax),
+        dur: rand(900,1900),
+        phase: Math.random()*TAU,
+        alpha: rand(aMin,aMax),
+        spr: spr
+      });
+    }
+  }
+
+  function buildSparks(n){
+    sparks=[];
+    for(var i=0;i<n;i++){
+      sparks.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: rand(-0.06,0.06),
+        vy: rand(-0.35,-0.08),
+        size: rand(1.4,4.2),
+        alpha: rand(0.05,0.35),
+        phase: Math.random()*TAU
+      });
+    }
+  }
+
+  function build(){
+    parts=[]; sparks=[];
+    buildHeart(760, 1.00, 2.5, 1.0, 2.5, SPR_PINK,  0.35, 1.00, 1500);
+    buildHeart(190, 0.30, 2.0, 0.9, 2.0, SPR_WHITE, 0.45, 1.00, 1700);
+    buildSparks(100);
+    T0 = performance.now();
+  }
+
+  function drawSprite(spr,x,y,size,alpha){
+    if(alpha<=0.004) return;
+    ctx.globalAlpha = alpha>1?1:alpha;
+    ctx.drawImage(spr, x-size, y-size, size*2, size*2);
+  }
+
+  var TEXT='我真的好爱你。';
+  function drawText(t,now){
+    if(t<2000) return;
+    var n=Math.floor((t-2000)/240);
+    if(n>TEXT.length) n=TEXT.length;
+    var shown=TEXT.slice(0,n);
+    if(!shown) return;
+    var fs=Math.max(19, Math.min(W*0.088, 40));
+    ctx.save();
+    ctx.font='italic bold '+fs+'px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+    ctx.textAlign='right';
+    ctx.shadowColor='rgba(255,80,130,0.9)';
+    ctx.shadowBlur=16;
+    ctx.fillStyle='#fff7f9';
+    var x=W-fs*0.9;
+    var y=cy+unit*14.6+fs*2.6;
+    ctx.fillText(shown,x,y);
+    if(n<TEXT.length && Math.sin(now*0.008)>0){
+      var w=ctx.measureText(shown).width;
+      ctx.fillRect(x-w-5, y-fs*0.82, 2, fs*0.86);
+    }
+    ctx.restore();
+  }
+
+  function frame(now){
+    var t = now - T0;
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#05000a';
+    ctx.fillRect(0,0,W,H);
+
+    /* 心跳：两次搏动，然后歇一下 */
+    var p = (t % 1500) / 1500;
+    var beat = 1
+      + Math.exp(-Math.pow((p-0.04)/0.050, 2)) * 0.050
+      + Math.exp(-Math.pow((p-0.22)/0.060, 2)) * 0.028;
+
+    /* 中心柔光 */
+    var glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, unit*24);
+    glow.addColorStop(0, 'rgba(255,60,120,' + (0.085 + (beat-1)*0.6) + ')');
+    glow.addColorStop(1, 'rgba(255,60,120,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0,0,W,H);
+
+    /* 飘散光点 */
+    var i, s, tw;
+    for(i=0;i<sparks.length;i++){
+      s=sparks[i];
+      s.x+=s.vx; s.y+=s.vy;
+      if(s.y<-20){ s.y=H+20; s.x=Math.random()*W; }
+      if(s.x<-20) s.x=W+20;
+      if(s.x>W+20) s.x=-20;
+      tw=0.5+0.5*Math.sin(now*0.002+s.phase);
+      drawSprite(SPR_FAR, s.x, s.y, s.size*(1.6+0.7*tw), s.alpha*tw*0.9);
+    }
+
+    /* 心形粒子 */
+    for(i=0;i<parts.length;i++){
+      var a=parts[i];
+      var k=easeOutCubic(clamp((t-a.delay)/a.dur,0,1));
+      if(k<=0) continue;
+      var wob=Math.sin(now*0.0016+a.phase)*1.6;
+      var tx=cx + a.rx*beat + a.rx*0.005*wob;
+      var ty=cy + a.ry*beat + a.ry*0.005*wob;
+      var px=a.x+(tx-a.x)*k;
+      var py=a.y+(ty-a.y)*k;
+      var tw2=0.62+0.38*Math.sin(now*0.003+a.phase);
+      drawSprite(a.spr, px, py, a.size*(1+0.22*tw2), a.alpha*tw2*k);
+    }
+
+    drawText(t, now);
+    requestAnimationFrame(frame);
+  }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1, 2.5);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width  = Math.floor(W*DPR);
+    cv.height = Math.floor(H*DPR);
+    cv.style.width  = W+'px';
+    cv.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    unit = Math.min(W,H)/42;
+    cx = W/2;
+    cy = H*0.43;
+    build();
+  }
+
+  var rt;
+  window.addEventListener('resize', function(){
+    clearTimeout(rt); rt=setTimeout(resize,200);
+  });
+  window.addEventListener('orientationchange', function(){ setTimeout(resize,400); });
+  document.addEventListener('touchstart', function(){ build(); }, {passive:true});
+
+  resize();
+  requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
