@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DeepSeek</title>
+<style>
+  :root{--bg:#191a1c;--panel:#212226;--bubble:#2e3034;--text:#ececed;--sub:#8d8f96;
+    --accent:#4d6bfe;--line:#ffffff14}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-tap-highlight-color:transparent}
+  body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+  header{flex:none;display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));
+    background:var(--panel);border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600}
+  .logo{width:26px;height:26px;border-radius:50%;background:var(--accent);
+    display:flex;align-items:center;justify-content:center;font-size:15px}
+  .tag{font-weight:400;font-size:11px;color:var(--sub);border:1px solid var(--line);
+    border-radius:20px;padding:1px 8px}
+  .tag.on{color:#4ade80;border-color:#4ade8055}
+  header .acts{display:flex;gap:4px}
+  button{background:none;border:0;color:var(--text);font-size:14px;padding:6px 8px;
+    border-radius:8px;font-family:inherit}
+  button:active{background:#ffffff14}
+  #list{flex:1;overflow-y:auto;padding:14px 12px 4px;-webkit-overflow-scrolling:touch}
+  .row{display:flex;gap:8px;margin-bottom:14px;align-items:flex-start}
+  .row.me{justify-content:flex-end}
+  .av{width:26px;height:26px;border-radius:50%;background:var(--accent);flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:2px}
+  .bubble{max-width:82%;padding:9px 12px;border-radius:14px;background:var(--bubble);
+    font-size:15px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+  .row.me .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .dots{display:inline-flex;gap:4px;padding:5px 0}
+  .dots i{width:6px;height:6px;border-radius:50%;background:var(--sub);
+    animation:bl 1s infinite}
+  .dots i:nth-child(2){animation-delay:.15s}
+  .dots i:nth-child(3){animation-delay:.3s}
+  @keyframes bl{0%,80%,100%{opacity:.25;transform:translateY(0)}
+    40%{opacity:1;transform:translateY(-3px)}}
+  .fail{margin-top:8px;font-size:13px;color:#ff6b6b;display:flex;align-items:center;
+    gap:10px;flex-wrap:wrap}
+  .fail button{border:1px solid var(--line);font-size:12px;padding:4px 10px}
+  .fail small{width:100%;color:var(--sub);font-size:11px;line-height:1.5}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;font-size:13px;color:var(--sub);line-height:1.75;margin-bottom:16px}
+  .card b{color:var(--text)}
+  footer{flex:none;display:flex;gap:8px;align-items:flex-end;
+    padding:8px 10px calc(10px + env(safe-area-inset-bottom))}
+  #input{flex:1;resize:none;max-height:120px;background:var(--panel);color:var(--text);
+    border:1px solid var(--line);border-radius:18px;padding:10px 14px;font-size:15px;
+    font-family:inherit;line-height:1.5;outline:none}
+  #input::placeholder{color:var(--sub)}
+  #send{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:18px;flex:none;display:flex;align-items:center;justify-content:center;
+    padding:0}
+  #send.stop{background:#3a3a40}
+  #sheet{position:fixed;inset:0;background:#000000aa;display:none;z-index:9}
+  #sheet.open{display:block}
+  .sheetbox{position:absolute;left:0;right:0;bottom:0;background:var(--panel);
+    border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+  .sheetbox h3{margin:0 0 14px;font-size:15px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}
+  .field input{width:100%;background:#191a1c;border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none}
+  .note{font-size:12px;color:var(--sub);line-height:1.75;margin:12px 0 14px}
+  .saverow{display:flex;gap:10px}
+  .saverow button{flex:1;padding:11px;border-radius:10px;font-size:14px;
+    border:1px solid var(--line)}
+  .saverow .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">🐋</span>DeepSeek<span id="mode" class="tag">整活模式</span></div>
+  <div class="acts">
+    <button id="clear">清空</button>
+    <button id="gear">⚙</button>
+  </div>
+</header>
+
+<main id="list"></main>
+
+<footer>
+  <textarea id="input" rows="1" placeholder="给 DeepSeek 发送消息"></textarea>
+  <button id="send">↑</button>
+</footer>
+
+<div id="sheet">
+  <div class="sheetbox">
+    <h3>设置</h3>
+    <div class="field">
+      <label>API Key（只在你这台手机上保存，不会写进网页）</label>
+      <input id="f-key" type="password" placeholder="sk-...">
+    </div>
+    <div class="field">
+      <label>接口地址</label>
+      <input id="f-url" placeholder="https://api.deepseek.com">
+    </div>
+    <div class="field">
+      <label>模型</label>
+      <input id="f-model" placeholder="deepseek-chat">
+    </div>
+    <div class="note">
+      不填 key 就是整活模式，每条回复都会崩成「服务器繁忙」。填上 key 之后，聊天记录和 key 都只存在你本机浏览器里，清空浏览器数据就没了。
+    </div>
+    <div class="saverow">
+      <button id="f-clear">清除记录</button>
+      <button id="f-save" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LS={key:'ds_key',url:'ds_url',model:'ds_model',msg:'ds_msgs'};
+const list=document.getElementById('list');
+const input=document.getElementById('input');
+const sendBtn=document.getElementById('send');
+const modeTag=document.getElementById('mode');
+const sheet=document.getElementById('sheet');
+
+const FAKE=[
+  '这个问题挺有意思，我们可以分三个层面来看。首先，从原理上说',
+  '先说结论：可以，而且比你想象的简单。具体讲，',
+  '我理解你想问的是什么了。关键在于',
+  '这个我要先分清楚两件事，一件是',
+  '好的，我来帮你梳理一下。第一步，',
+  '这个问题需要一点背景知识，简单来说'
+];
+
+let msgs=[];
+try{msgs=JSON.parse(localStorage.getItem(LS.msg)||'[]')||[];}catch(e){msgs=[];}
+let busy=false,runId=0,timers=[],ctlRef=null,lastPrompt='';
+
+const saveMsgs=()=>{try{localStorage.setItem(LS.msg,JSON.stringify(msgs.slice(-200)));}catch(e){}};
+const getKey=()=>(localStorage.getItem(LS.key)||'').trim();
+const getUrl=()=>(localStorage.getItem(LS.url)||'https://api.deepseek.com').replace(/\/+$/,'');
+const getModel=()=>localStorage.getItem(LS.model)||'deepseek-chat';
+const scrollBottom=()=>{list.scrollTop=list.scrollHeight;};
+
+function bubble(role,text){
+  const row=document.createElement('div');
+  row.className='row'+(role==='user'?' me':'');
+  if(role!=='user'){
+    const av=document.createElement('div');
+    av.className='av';av.textContent='🐋';
+    row.appendChild(av);
+  }
+  const b=document.createElement('div');
+  b.className='bubble';b.textContent=text||'';
+  row.appendChild(b);
+  list.appendChild(row);
+  return b;
+}
+
+function render(){
+  list.innerHTML='';
+  if(!getKey()){
+    const c=document.createElement('div');
+    c.className='card';
+    c.innerHTML='<b>当前是整活模式。</b><br>你发的每一句，我都会认真思考，然后崩溃一次。'+
+      '<br>想看真的回复：右上角 ⚙ 里填自己的 DeepSeek API key。';
+    list.appendChild(c);
+  }
+  for(const m of msgs)bubble(m.role,m.content);
+  scrollBottom();
+}
+
+function setMode(){
+  const on=!!getKey();
+  modeTag.textContent=on?'已连接':'整活模式';
+  modeTag.classList.toggle('on',on);
+}
+
+function setBusy(v){
+  busy=v;
+  sendBtn.textContent=v?'■':'↑';
+  sendBtn.classList.toggle('stop',v);
+}
+
+function dotsIn(b){
+  b.innerHTML='<span class="dots"><i></i><i></i><i></i></span>';
+}
+
+function stopAll(){
+  runId++;timers.forEach(clearInterval);timers=[];ctlRef&&ctlRef.abort();
+}
+
+function fail(b,reason){
+  const box=document.createElement('div');
+  box.className='fail';
+  const s=document.createElement('span');s.textContent='服务器繁忙，请稍后再试';
+  const btn=document.createElement('button');btn.textContent='重试';
+  btn.onclick=()=>{box.remove();b.textContent='';attempt(b,lastPrompt);};
+  box.appendChild(s);box.appendChild(btn);
+  if(reason){const sm=document.createElement('small');sm.textContent=reason;box.appendChild(sm);}
+  b.parentElement.appendChild(box);
+  setBusy(false);
+  scrollBottom();
+}
+
+function fakeReply(b){
+  const id=++runId;
+  setBusy(true);
+  dotsIn(b);
+  const src=FAKE[Math.floor(Math.random()*FAKE.length)];
+  const cut=4+Math.floor(Math.random()*(src.length-6));
+  setTimeout(()=>{
+    if(id!==runId)return;
+    b.textContent='';
+    let i=0;
+    const iv=setInterval(()=>{
+      if(id!==runId){clearInterval(iv);return;}
+      b.textContent=src.slice(0,++i);
+      scrollBottom();
+      if(i>=cut){clearInterval(iv);fail(b,'');}
+    },45);
+    timers.push(iv);
+  },700+Math.random()*1300);
+}
+
+async function realReply(b,prompt,key){
+  const id=++runId;
+  setBusy(true);
+  dotsIn(b);
+  const ctl=new AbortController();ctlRef=ctl;
+  const payload={
+    model:getModel(),stream:true,
+    messages:msgs.filter(m=>m.content&&m.role!=='error')
+      .map(m=>({role:m.role,content:m.content}))
+  };
+  try{
+    const res=await fetch(getUrl()+'/chat/completions',{
+      method:'POST',signal:ctl.signal,
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const t=await res.text();
+      throw new Error('接口返回 '+res.status+'：'+t.slice(0,160));
+    }
+    b.textContent='';
+    const reader=res.body.getReader(),dec=new TextDecoder();
+    let buf='',text='';
+    while(true){
+      const r=await reader.read();
+      if(r.done)break;
+      if(id!==runId)return;
+      buf+=dec.decode(r.value,{stream:true});
+      const parts=buf.split('\n');
+      buf=parts.pop();
+      for(const p of parts){
+        const line=p.trim();
+        if(!line.startsWith('data:'))continue;
+        const d=line.slice(5).trim();
+        if(!d||d==='[DONE]')continue;
+        try{
+          const j=JSON.parse(d);
+          const c=j.choices&&j.choices[0]&&j.choices[0].delta
+            ?(j.choices[0].delta.content||''):'';
