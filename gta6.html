@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>迷你GTA6</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0d12;
+    font-family:system-ui,-apple-system,"PingFang SC",sans-serif;
+    touch-action:none;-webkit-user-select:none;user-select:none}
+  canvas{display:block}
+  .hud{position:fixed;color:#ffd23f;font-size:22px;text-shadow:0 2px 8px #000;pointer-events:none}
+  #stars{left:14px;top:12px;letter-spacing:3px}
+  #money{right:14px;top:12px;color:#7dff9b}
+  #tip{left:0;right:0;bottom:14px;text-align:center;color:#ffffff88;font-size:13px}
+  #over{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;background:#000000cc;color:#fff;font-size:30px;letter-spacing:3px}
+  #over small{font-size:14px;color:#ffffff99;margin-top:12px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud" id="stars"></div>
+<div class="hud" id="money">$0</div>
+<div class="hud" id="tip">按住屏幕走路 · 贴到彩色车自动抢车</div>
+<div id="over"><div id="ot">BUSTED</div><small>点一下屏幕重来</small></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let VW=0,VH=0;
+function resize(){
+  const d=Math.min(window.devicePixelRatio||1,2);
+  VW=innerWidth;VH=innerHeight;
+  cv.width=VW*d;cv.height=VH*d;
+  cv.style.width=VW+'px';cv.style.height=VH+'px';
+  ctx.setTransform(d,0,0,d,0,0);
+}
+addEventListener('resize',resize);resize();
+
+const WORLD=1600,STEP=200,ROAD=78,MARGIN=40;
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const angDiff=a=>{while(a>Math.PI)a-=Math.PI*2;while(a<-Math.PI)a+=Math.PI*2;return a;};
+
+// 街区楼房
+const blocks=[];
+for(let i=0;i<8;i++)for(let j=0;j<8;j++){
+  const w=STEP-ROAD-28,h=STEP-ROAD-28;
+  blocks.push({x:i*STEP+ROAD/2+14,y:j*STEP+ROAD/2+14,w:w,h:h,
+    c:'hsl('+(205+rnd(45))+',12%,'+(15+rnd(9))+'%)'});
+}
+
+function roadPoint(){
+  if(Math.random()<0.5)return {x:rnd(9)*STEP+rnd(24)-12,y:Math.random()*WORLD};
+  return {x:Math.random()*WORLD,y:rnd(9)*STEP+rnd(24)-12};
+}
+
+const cars=[],peds=[],cops=[],splats=[];
+for(let i=0;i<28;i++){const p=roadPoint();
+  cars.push({x:p.x,y:p.y,ang:rnd(4)*Math.PI/2,spd:0,taken:false,
+    color:'hsl('+rnd(360)+',70%,58%)'});}
+for(let i=0;i<42;i++){const p=roadPoint();
+  peds.push({x:p.x,y:p.y,ang:Math.random()*6.28,t:0});}
+
+let money=0,wanted=0,cool=0,over=false;
+const P={x:600,y:600,ang:0,onFoot:true,car:null};
+const cam={x:0,y:0};
+let touch=null;
+
+const toWorld=e=>({x:e.clientX+cam.x,y:e.clientY+cam.y});
+cv.addEventListener('pointerdown',e=>{if(over){reset();return;}touch=toWorld(e);});
+cv.addEventListener('pointermove',e=>{if(touch)touch=toWorld(e);});
+cv.addEventListener('pointerup',()=>touch=null);
+cv.addEventListener('pointercancel',()=>touch=null);
+
+function reset(){
+  over=false;document.getElementById('over').style.display='none';
+  wanted=0;cool=0;cops.length=0;splats.length=0;
+  P.onFoot=true;P.car=null;P.x=600;P.y=600;P.ang=0;
+  for(const c of cars)c.taken=false;
+  for(const p of peds){const q=roadPoint();p.x=q.x;p.y=q.y;}
+}
+
+function spawnCop(){
+  const a=Math.random()*6.28,d=460;
+  cops.push({x:clamp(P.x+Math.cos(a)*d,20,WORLD-20),
+             y:clamp(P.y+Math.sin(a)*d,20,WORLD-20),ang:0,spd:0,flash:0});
+}
+
+function tick(dt){
+  for(const p of peds){
+    p.t+=dt;
+    if(p.t>1.2){p.t=0;p.ang+=(Math.random()-0.5)*2;}
+    p.x=clamp(p.x+Math.cos(p.ang)*0.6,10,WORLD-10);
+    p.y=clamp(p.y+Math.sin(p.ang)*0.6,10,WORLD-10);
+  }
+
+  if(P.onFoot){
+    if(touch){
+      const dx=touch.x-P.x,dy=touch.y-P.y,d=Math.hypot(dx,dy);
+      if(d>6){
+        P.ang=Math.atan2(dy,dx);
+        P.x=clamp(P.x+Math.cos(P.ang)*3.4,20,WORLD-20);
+        P.y=clamp(P.y+Math.sin(P.ang)*3.4,20,WORLD-20);
+      }
+    }
+    for(const c of cars){
+      if(!c.taken&&Math.hypot(c.x-P.x,c.y-P.y)<30){
+        c.taken=true;P.onFoot=false;P.car=c;P.x=c.x;P.y=c.y;P.ang=c.ang;break;
+      }
+    }
+  }else{
+    const c=P.car;
+    c.spd=Math.min(c.spd+0.22,8);
+    if(touch){
+      c.ang+=clamp(angDiff(Math.atan2(touch.y-c.y,touch.x-c.x)-c.ang),-0.05,0.05);
+    }else{
+      c.spd=Math.max(c.spd-0.5,0);
+    }
+    c.x=clamp(c.x+Math.cos(c.ang)*c.spd,MARGIN,WORLD-MARGIN);
+    c.y=clamp(c.y+Math.sin(c.ang)*c.spd,MARGIN,WORLD-MARGIN);
+    P.x=c.x;P.y=c.y;P.ang=c.ang;
+    for(const p of peds){
+      if(c.spd>2&&Math.hypot(p.x-c.x,p.y-c.y)<20){
+        splats.push({x:p.x,y:p.y,r:8});
+        const q=roadPoint();p.x=q.x;p.y=q.y;
+        money+=25;wanted=Math.min(wanted+1,5);cool=12;
+      }
+    }
+  }
+
+  if(wanted>0&&!over){cool-=dt;if(cool<=0){wanted--;cool=12;}}
+  while(cops.length<wanted)spawnCop();
+  while(cops.length>wanted)cops.pop();
+  for(const c of cops){
+    c.spd=Math.min(c.spd+0.2,7);
+    c.ang+=clamp(angDiff(Math.atan2(P.y-c.y,P.x-c.x)-c.ang),-0.045,0.045);
+    c.x=clamp(c.x+Math.cos(c.ang)*c.spd,MARGIN,WORLD-MARGIN);
+    c.y=clamp(c.y+Math.sin(c.ang)*c.spd,MARGIN,WORLD-MARGIN);
+    c.flash+=dt*10;
+    if(!over&&Math.hypot(P.x-c.x,P.y-c.y)<24){
+      over=true;
+      document.getElementById('ot').textContent=P.onFoot?'WASTED':'BUSTED';
+      document.getElementById('over').style.display='flex';
+    }
+  }
+
+  cam.x=clamp(P.x-VW/2,0,Math.max(0,WORLD-VW));
+  cam.y=clamp(P.y-VH/2,0,Math.max(0,WORLD-VH));
+}
+
+function drawCar(x,y,ang,w,h,color){
+  ctx.save();ctx.translate(x,y);ctx.rotate(ang);
+  ctx.fillStyle=color;ctx.fillRect(-w/2,-h/2,w,h);
+  ctx.fillStyle='#00000055';ctx.fillRect(-w*0.25,-h*0.42,w*0.5,h*0.84);
+  ctx.restore();
+}
+
+function draw(){
+  ctx.fillStyle='#0e1015';ctx.fillRect(0,0,VW,VH);
+  ctx.save();ctx.translate(-cam.x,-cam.y);
+
+  ctx.fillStyle='#2b2f38';
+  for(let k=0;k<9;k++){
+    ctx.fillRect(k*STEP-ROAD/2,0,ROAD,WORLD);
+    ctx.fillRect(0,k*STEP-ROAD/2,WORLD,ROAD);
+  }
+  ctx.fillStyle='#4a5060';
+  for(let k=0;k<9;k++){
+    for(let t=0;t<WORLD;t+=40){
+      ctx.fillRect(k*STEP-2,t,4,20);
+      ctx.fillRect(t,k*STEP-2,20,4);
+    }
+  }
+  for(const b of blocks){ctx.fillStyle=b.c;ctx.fillRect(b.x,b.y,b.w,b.h);}
+  for(const s of splats){ctx.fillStyle='#8b1a1a';
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.3);ctx.fill();}
+  for(const c of cars)if(!c.taken)drawCar(c.x,c.y,c.ang,34,18,c.color);
+  ctx.fillStyle='#d9d9e3';
+  for(const p of peds){ctx.beginPath();ctx.arc(p.x,p.y,4,0,6.3);ctx.fill();}
+  for(const c of cops){
+    drawCar(c.x,c.y,c.ang,36,19,'#e8eef7');
+    ctx.fillStyle=(Math.floor(c.flash)%2)?'#ff2d2d':'#2d6bff';
+    ctx.fillRect(c.x-7,c.y-3,14,6);
+  }
+  if(P.onFoot){
+    ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(P.x,P.y,6,0,6.3);ctx.fill();
+    ctx.strokeStyle='#ffd23f';ctx.lineWidth=3;ctx.beginPath();
+    ctx.moveTo(P.x,P.y);ctx.lineTo(P.x+Math.cos(P.ang)*13,P.y+Math.sin(P.ang)*13);
+    ctx.stroke();
+  }else{
+    drawCar(P.x,P.y,P.ang,36,19,'#ffce2b');
+  }
+  ctx.restore();
+
+  document.getElementById('stars').textContent=('★'.repeat(wanted))||'☆';
+  document.getElementById('money').textContent='$'+money;
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min((now-last)/1000,0.05);last=now;
+  if(!over)tick(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
