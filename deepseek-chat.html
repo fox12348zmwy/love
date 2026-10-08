@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#191a1c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%234d6bfe'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white'>D</text></svg>">
 <title>DeepSeek</title>
 <style>
 :root{--bg:#191a1c;--panel:#212226;--bubble:#2e3034;--text:#ececed;--sub:#8d8f96;--accent:#4d6bfe;--line:#ffffff14}
@@ -15,15 +19,18 @@ header{flex:none;display:flex;align-items:center;justify-content:space-between;p
 .logo{width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px}
 .tag{font-weight:400;font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:20px;padding:1px 8px}
 .tag.on{color:#4ade80;border-color:#4ade8055}
-header .acts{display:flex;gap:4px}
+header .acts{display:flex;gap:4px;align-items:center}
 button{background:none;border:0;color:var(--text);font-size:14px;padding:6px 8px;border-radius:8px;font-family:inherit}
 button:active{background:#ffffff14}
+#thinkBtn{font-size:12px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--sub)}
+#thinkBtn.on{color:#8ab4ff;border-color:#4d6bfe88;background:#4d6bfe1a}
 #list{flex:1;overflow-y:auto;padding:14px 12px 4px;-webkit-overflow-scrolling:touch}
 .row{display:flex;gap:8px;margin-bottom:14px;align-items:flex-start}
 .row.me{justify-content:flex-end}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:2px}
 .bubble{max-width:82%;padding:9px 12px;border-radius:14px;background:var(--bubble);font-size:15px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
 .row.me .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.think{font-size:13px;color:var(--sub);border-left:2px solid #4d6bfe66;padding:2px 0 2px 8px;margin-bottom:8px;white-space:pre-wrap;line-height:1.65}
 .dots{display:inline-flex;gap:4px;padding:5px 0}
 .dots i{width:6px;height:6px;border-radius:50%;background:var(--sub);animation:bl 1s infinite}
 .dots i:nth-child(2){animation-delay:.15s}
@@ -41,11 +48,13 @@ footer{flex:none;display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc
 #send.stop{background:#3a3a40}
 #sheet{position:fixed;inset:0;background:#000000aa;display:none;z-index:9}
 #sheet.open{display:block}
-.sheetbox{position:absolute;left:0;right:0;bottom:0;background:var(--panel);border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+.sheetbox{position:absolute;left:0;right:0;bottom:0;max-height:92%;overflow-y:auto;background:var(--panel);border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
 .sheetbox h3{margin:0 0 14px;font-size:15px}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}
-.field input{width:100%;background:#191a1c;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none}
+.field input,.field textarea{width:100%;background:#191a1c;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;resize:none}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin:0 0 14px}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
 .note{font-size:12px;color:var(--sub);line-height:1.75;margin:12px 0 14px}
 .saverow{display:flex;gap:10px}
 .saverow button{flex:1;padding:11px;border-radius:10px;font-size:14px;border:1px solid var(--line)}
@@ -56,7 +65,7 @@ footer{flex:none;display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc
 <div id="err"></div>
 <header>
   <div class="brand"><span class="logo">🐋</span>DeepSeek<span id="mode" class="tag">整活模式</span></div>
-  <div class="acts"><button id="clear">清空</button><button id="gear">⚙</button></div>
+  <div class="acts"><button id="thinkBtn">深度思考</button><button id="clear">清空</button><button id="gear">⚙</button></div>
 </header>
 <main id="list"></main>
 <footer>
@@ -66,20 +75,24 @@ footer{flex:none;display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc
 <div id="sheet">
   <div class="sheetbox">
     <h3>设置</h3>
-    <div class="field"><label>API Key（只存你这台手机，不会写进网页）</label><input id="f-key" type="password" placeholder="sk-..."></div>
+    <div class="field"><label>API Key（只存在你这台手机上）</label><input id="f-key" type="password" placeholder="sk-..."></div>
     <div class="field"><label>接口地址</label><input id="f-url" placeholder="https://api.deepseek.com"></div>
     <div class="field"><label>模型</label><input id="f-model" placeholder="deepseek-chat"></div>
-    <div class="note">不填 key 就是整活模式，每条回复都会崩成「服务器繁忙」。填了 key 之后，聊天记录和 key 都只存在你本机浏览器里，清空浏览器数据就没了。</div>
+    <div class="field"><label>思考模型（深度思考打开时用）</label><input id="f-tmodel" placeholder="deepseek-reasoner"></div>
+    <div class="field"><label>系统提示词（人设，留空就是原味）</label><textarea id="f-sp" rows="3" placeholder="你是一只话很少的猫，回答不超过十个字。"></textarea></div>
+    <label class="check"><input type="checkbox" id="f-egg"> 彩蛋：真模式下随机装一次「服务器繁忙」</label>
+    <div class="note">不填 key 就是整活模式，每条回复都会崩。key、聊天记录、人设都只存在本机浏览器里，清空数据就没了。</div>
     <div class="saverow"><button id="f-clear">清除记录</button><button id="f-save" class="primary">保存</button></div>
   </div>
 </div>
 <script>
-const LS={key:'ds_key',url:'ds_url',model:'ds_model',msg:'ds_msgs'};
+const LS={key:'ds_key',url:'ds_url',model:'ds_model',tmodel:'ds_tmodel',sp:'ds_sp',egg:'ds_egg',think:'ds_think',msg:'ds_msgs'};
+const g=k=>localStorage.getItem(k)||'';
 window.addEventListener('error',e=>{const d=document.getElementById('err');
   d.style.display='block';d.textContent='脚本错误：'+e.message+'（第'+e.lineno+'行）';});
 const list=document.getElementById('list'),input=document.getElementById('input'),
   sendBtn=document.getElementById('send'),modeTag=document.getElementById('mode'),
-  sheet=document.getElementById('sheet');
+  sheet=document.getElementById('sheet'),thinkBtn=document.getElementById('thinkBtn');
 const FAKE=['这个问题挺有意思，我们可以分三个层面来看。首先，从原理上说',
   '先说结论：可以，而且比你想象的简单。具体讲，',
   '我理解你想问的是什么了。关键在于',
@@ -87,13 +100,17 @@ const FAKE=['这个问题挺有意思，我们可以分三个层面来看。首�
   '好的，我来帮你梳理一下。第一步，',
   '这个问题需要一点背景知识，简单来说'];
 let msgs=[];
-try{msgs=JSON.parse(localStorage.getItem(LS.msg)||'[]')||[];}catch(e){msgs=[];}
+try{msgs=JSON.parse(g(LS.msg)||'[]')||[];}catch(e){msgs=[];}
 let busy=false,runId=0,timers=[],ctlRef=null,lastPrompt='';
 const saveMsgs=()=>{try{localStorage.setItem(LS.msg,JSON.stringify(msgs.slice(-200)));}catch(e){}};
-const getKey=()=>(localStorage.getItem(LS.key)||'').trim();
-const getUrl=()=>(localStorage.getItem(LS.url)||'https://api.deepseek.com').replace(/\/+$/,'');
-const getModel=()=>localStorage.getItem(LS.model)||'deepseek-chat';
+const getKey=()=>g(LS.key).trim();
+const getUrl=()=>(g(LS.url)||'https://api.deepseek.com').replace(/\/+$/,'');
+const isThink=()=>g(LS.think)==='1';
+const isEgg=()=>g(LS.egg)==='1';
+const getModel=()=>isThink()?(g(LS.tmodel)||'deepseek-reasoner'):(g(LS.model)||'deepseek-chat');
 const scrollBottom=()=>{list.scrollTop=list.scrollHeight;};
+const setThinkUI=()=>thinkBtn.classList.toggle('on',isThink());
+thinkBtn.onclick=()=>{localStorage.setItem(LS.think,isThink()?'0':'1');setThinkUI();};
 
 function bubble(role,text){
   const row=document.createElement('div');
@@ -160,7 +177,7 @@ function fakeReply(b){
   const id=++runId;
   setBusy(true);dotsIn(b);
   const src=FAKE[Math.floor(Math.random()*FAKE.length)];
-  const cut=4+Math.floor(Math.random()*(src.length-6));
+    const cut=4+Math.floor(Math.random()*(src.length-6));
   setTimeout(()=>{
     if(id!==runId)return;
     b.textContent='';
@@ -178,12 +195,27 @@ function fakeReply(b){
 async function realReply(b,prompt,key){
   const id=++runId;
   setBusy(true);dotsIn(b);
+  const useThink=isThink();
+  let thinkEl=null,think='',bodyEl=b;
+  if(useThink){
+    thinkEl=document.createElement('div');thinkEl.className='think';
+    bodyEl=document.createElement('div');
+    b.appendChild(thinkEl);b.appendChild(bodyEl);
+  }
+    if(isEgg()&&Math.random()<0.25){
+    setTimeout(()=>{
+      if(id!==runId)return;
+      b.textContent='';
+      fail(b,'彩蛋：这条是我故意装的，点重试就正常了');
+    },900+Math.random()*900);
+    return;
+  }
   const ctl=new AbortController();ctlRef=ctl;
-  const payload={
-    model:getModel(),stream:true,
-    messages:msgs.filter(m=>m.content&&m.role!=='error')
-      .map(m=>({role:m.role,content:m.content}))
-  };
+  const hist=msgs.filter(m=>m.content&&m.role!=='error')
+    .map(m=>({role:m.role,content:m.content}));
+  const sp=g(LS.sp).trim();
+  const payload={model:getModel(),stream:true,
+    messages:sp?[{role:'system',content:sp}].concat(hist):hist};
   try{
     const res=await fetch(getUrl()+'/chat/completions',{
       method:'POST',signal:ctl.signal,
@@ -194,10 +226,10 @@ async function realReply(b,prompt,key){
       const t=await res.text();
       throw new Error('接口返回 '+res.status+'：'+t.slice(0,160));
     }
-    b.textContent='';
+    bodyEl.textContent='';
     const reader=res.body.getReader(),dec=new TextDecoder();
     let buf='',text='';
-    while(true){
+        while(true){
       const r=await reader.read();
       if(r.done)break;
       if(id!==runId)return;
@@ -212,23 +244,23 @@ async function realReply(b,prompt,key){
         try{
           const j=JSON.parse(d);
           const ch=j.choices&&j.choices[0]&&j.choices[0].delta;
-          const c=(ch&&ch.content)?ch.content:'';
-          if(c){text+=c;b.textContent=text;scrollBottom();}
+          if(ch&&ch.reasoning_content&&thinkEl){
+            think+=ch.reasoning_content;thinkEl.textContent=think;scrollBottom();
+          }
+          const c=ch&&ch.content?ch.content:'';
+          if(c){text+=c;bodyEl.textContent=text;scrollBottom();}
         }catch(e){}
       }
-    }
-    if(!text)b.textContent='(没有收到内容)';
-    msgs.push({role:'assistant',content:b.textContent});
+        }
+        if(!text)bodyEl.textContent='(没有收到内容)';
+    msgs.push({role:'assistant',content:bodyEl.textContent});
     saveMsgs();
   }catch(e){
     if(e.name==='AbortError'||id!==runId){
-      const t=b.textContent||'(已停止)';
-      b.textContent=t;
-      msgs.push({role:'assistant',content:t});
-      saveMsgs();
+      const t=bodyEl.textContent||'(已停止)';
+      msgs.push({role:'assistant',content:t});saveMsgs();
     }else{
-      b.textContent='';
-      fail(b,e.message);
+      b.textContent='';fail(b,e.message);
     }
   }finally{
     if(id===runId)setBusy(false);
@@ -240,7 +272,9 @@ function attempt(b,prompt){
   const key=getKey();
   if(key)realReply(b,prompt,key);
   else fakeReply(b);
-}function send(){
+}
+
+function send(){
   if(busy)return;
   const t=input.value.trim();
   if(!t){input.focus();return;}
@@ -252,8 +286,7 @@ function attempt(b,prompt){
   const b=bubble('assistant','');
   attempt(b,t);
 }
-
-function autosize(){
+  function autosize(){
   input.style.height='auto';
   input.style.height=Math.min(input.scrollHeight,120)+'px';
 }
@@ -265,32 +298,37 @@ input.addEventListener('keydown',e=>{
 sendBtn.onclick=()=>{
   if(busy){stopAll();setBusy(false);}
   else send();
-};document.getElementById('clear').onclick=()=>{
+};
+document.getElementById('clear').onclick=()=>{
   if(!confirm('清空聊天记录？'))return;
   stopAll();setBusy(false);msgs=[];saveMsgs();render();
 };
 document.getElementById('gear').onclick=()=>{
   document.getElementById('f-key').value=getKey();
-  document.getElementById('f-url').value=localStorage.getItem(LS.url)||'';
-  document.getElementById('f-model').value=localStorage.getItem(LS.model)||'';
+  document.getElementById('f-url').value=g(LS.url);
+  document.getElementById('f-model').value=g(LS.model);
+  document.getElementById('f-tmodel').value=g(LS.tmodel);
+  document.getElementById('f-sp').value=g(LS.sp);
+  document.getElementById('f-egg').checked=isEgg();
   sheet.classList.add('open');
 };
-sheet.onclick=e=>{if(e.target===sheet)sheet.classList.remove('open');};
+  sheet.onclick=e=>{if(e.target===sheet)sheet.classList.remove('open');};
 document.getElementById('f-save').onclick=()=>{
-  const k=document.getElementById('f-key').value.trim();
-  const u=document.getElementById('f-url').value.trim();
-  const m=document.getElementById('f-model').value.trim();
-  if(k)localStorage.setItem(LS.key,k);else localStorage.removeItem(LS.key);
-  if(u)localStorage.setItem(LS.url,u);else localStorage.removeItem(LS.url);
-  if(m)localStorage.setItem(LS.model,m);else localStorage.removeItem(LS.model);
+  const put=(k,v)=>{v?localStorage.setItem(k,v):localStorage.removeItem(k);};
+  put(LS.key,document.getElementById('f-key').value.trim());
+  put(LS.url,document.getElementById('f-url').value.trim());
+  put(LS.model,document.getElementById('f-model').value.trim());
+  put(LS.tmodel,document.getElementById('f-tmodel').value.trim());
+  put(LS.sp,document.getElementById('f-sp').value.trim());
+  put(LS.egg,document.getElementById('f-egg').checked?'1':'');
   sheet.classList.remove('open');
-  setMode();render();
+  setMode();setThinkUI();render();
 };
 document.getElementById('f-clear').onclick=()=>{
   if(!confirm('清空聊天记录？'))return;
   msgs=[];saveMsgs();render();
 };
-setMode();render();autosize();
+setMode();setThinkUI();render();autosize();
 </script>
 </body>
 </html>
